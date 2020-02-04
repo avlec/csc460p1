@@ -2,6 +2,8 @@
 #include <Servo.h>
 
 #define LASER_PIN 11
+#define TILT_PIN 10
+#define SWEEP_PIN 9
 
 struct message {
   uint8_t x_pos;
@@ -15,25 +17,18 @@ int tilt_pos = 0;
 int sweep_pos = 0;
 
 int new_pos(int joystick_val, int current_pos) {
-  //To safely test, if joystick val is past a threshhold move position by 1
   int joystick_middle = 127;
-  int joystick_threshold = 10;
-  int min_pos = 0;
-  int max_pos = 180;
+  int movementDivider = 8;
+  int movementBase = joystick_middle - joystick_val;
+  
+  int min_pos = 10;
+  int max_pos = 170;
 
-  int new_pos;
-  if(joystick_val < joystick_middle - joystick_threshold && tilt_pos > min_pos) {
-    new_pos = current_pos - 5;
-  }else if((joystick_val > joystick_middle + joystick_threshold) && tilt_pos < max_pos){
-    new_pos = current_pos + 5;
-  }else {
-    new_pos = current_pos;
-  }
-
-  if(new_pos > 180) {
-    return 180;
-  }else if(new_pos < 0) {
-    return 0;
+  int new_pos = current_pos + (movementBase / movementDivider); //the most it could be is around 25
+  if(new_pos > max_pos) {
+    return max_pos;
+  }else if(new_pos < min_pos) {
+    return min_pos;
   }else{
     return new_pos;
   }
@@ -62,9 +57,13 @@ void update_message() {
 void check_servos_and_laser() {
   sweep_pos = new_pos(global_message.x_pos, sweep_pos);
   tilt_pos = new_pos(global_message.y_pos, tilt_pos);
+  Serial.print(sweep_pos);
+  Serial.print(tilt_pos);
+  Serial.print("\n");
+  
 
-//  tilt_servo.write(tilt_pos);
-//  sweep_servo.write(sweep_pos);
+  tilt_servo.write(tilt_pos);
+  sweep_servo.write(sweep_pos);
   
   if(global_message.pressed){
     analogWrite(LASER_PIN, 255);
@@ -79,8 +78,8 @@ void setup() {
   Serial1.begin(9600);
 
   //setup servo both sweep and tilt
-  tilt_servo.attach(9);
-  sweep_servo.attach(10);
+  tilt_servo.attach(TILT_PIN);
+  sweep_servo.attach(SWEEP_PIN);
 
   //setup laser pointer, can use analogwrite to adjust brightness
   pinMode(LASER_PIN, OUTPUT);
